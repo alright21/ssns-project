@@ -2,6 +2,7 @@ import requests
 import time
 import serial
 import sys
+from requests.exceptions import HTTPError
 
 # serial configuration parameters
 port = '/dev/ttyS6'
@@ -28,15 +29,21 @@ def decode_utf8(text):
 def setupSerial(baudRate, serialPortName):
     
     global arduino
-    arduino = serial.Serial(serialPortName, 
+    try:
+        arduino = serial.Serial(serialPortName, 
                             baudRate,
                             parity=serial.PARITY_EVEN, 
                             stopbits=serial.STOPBITS_ONE, 
                             bytesize=serial.EIGHTBITS, 
                             timeout=1)
+        print("Serial port " + serialPortName + " opened  Baudrate " + str(baudRate))
+        waitForArduino()
+    except serial.SerialException as se:
+        
+        print(f'Serial Exception: {se.strerror}\nProgram will be closed')
+        quit()
 
-    print("Serial port " + serialPortName + " opened  Baudrate " + str(baudRate))
-    waitForArduino()
+    
 
 
 #Receive and exttract Arduino data. Packet example {1,2,3}
@@ -86,35 +93,44 @@ def waitForArduino():
 # Transform raw data in JSON data, rady to be sent to the server
 def prepareData(raw_data):
 
-	data_list = raw_data.rsplit(',')
-	data_object = {}
-	if len(data_list) == 3:
-		
-		data_object["node_id"] = data_list[0]
-		data_object["light"] = data_list[1]
-		data_object["range"] = data_list[2]
-	
-	return data_object
+    data_list = raw_data.rsplit(',')
+    data_object = {}
+    if len(data_list) == 3:
+        
+        data_object["node_id"] = data_list[0]
+        data_object["light"] = data_list[1]
+        data_object["range"] = data_list[2]
+    
+    return data_object
 
 
 # sends data to the server
 def sendData(url, data):
 
-	r =requests.post(url = url, data = data)
-	print(r.status_code)
+    try:
+
+        response = requests.post(url = url, data = data)
+        response.raise_for_status()
+
+    except HTTPError as httpError:
+        print(f'HTTP error occurred: {httpError}')
+    except Exception as error:
+        print(f'Other errors has occurred: {error}')
+    else:
+        print(f'POST request success: {response.status_code}')
 
 
 setupSerial(baud_rate, port)
 while True:
     
     # check for a reply
-	arduinoReply = recvLikeArduino()
+    arduinoReply = recvLikeArduino()
 
-	if not (arduinoReply == 'Error'):
-		data = prepareData(arduinoReply)
-		print(data)
-		url = 'http://localhost:8000/api/measures/'
-		sendData(url, data)
+    if not (arduinoReply == 'Error'):
+        data = prepareData(arduinoReply)
+        print(data)
+        url = 'http://localhost:8000/api/measures/'
+        sendData(url, data)
 
 
         
