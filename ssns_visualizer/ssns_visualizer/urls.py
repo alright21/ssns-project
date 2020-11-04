@@ -15,9 +15,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from visualizer import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('visualizer.urls')),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('shelves_chart/', views.shelves_chart, name='shelves_chart'),
     path('', include('measures.urls'))
 ]

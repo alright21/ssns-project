@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div id="container" style="width: 90%; margin: auto;">
+  <canvas id="shelves_chart" data-url="{% url 'shelves_chart' %}"></canvas>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
+<script>
+
+  $(function () {
+
+    var $shelvesChart = $("#shelves_chart");
+    $.ajax({
+      url: $shelvesChart.data("url"),
+      success: function (data) {
+
+        var ctx = $shelvesChart[0].getContext("2d");
+        var color_list = []
+        for (var i = 0; i < data.range_data.length; i++) {
+          color_list.push('white')
+        }
+        var shop = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.labels,
+            datasets: [
+              {
+                label: 'SHELF EMPTY',
+                data: data.light_data,
+                backgroundColor: 'red',
+                type: 'line',
+                showLine: false
+              },
+              {
+                label: 'status',
+                backgroundColor: color_list,
+                data: data.range_data
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            legend: {
+              position: 'top',
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Shelves Status'
+            },
+            scales: {
+              yAxes: [{
+                ticks: {
+                  suggestedMin: 0,
+                  suggestedMax: 100
+                }
+              }
+              ]
+            }, elements: {
+              point: {
+                radius: 0,
+                hitRadius: 0,
+                hoverRadius: 0
+              }
+            }
+          }
+        });
+
+        // BAR COLORS
+        var filled = 60;
+        var halved = 30;
+        var dataset = shop.data.datasets[1];
+        for (var i = 0; i < dataset.data.length; i++) {
+
+          if (dataset.data[i] > filled) {
+            dataset.backgroundColor[i] = 'rgb(0, 255, 0)';
+          }
+          else if (dataset.data[i] > halved) {
+            dataset.backgroundColor[i] = 'rgb(255, 255, 0)';
+          }
+          else {
+            dataset.backgroundColor[i] = 'rgb(255, 0, 0)';
+          }
+
+        }
+
+        // LIGHT STATUS IMAGES
+        var warning = new Image();
+        warning.src = "{% static 'visualizer/serving-dish.png' %}";
+
+        Chart.pluginService.register({
+          
+          afterUpdate: function (chart) {
+            var dataset = shop.data.datasets[0];
+            for (var i = 0; i < dataset.data.length; i++) {
+
+              if (dataset.data[i] > 0) {
+                if (shop.data.datasets[1].data[i]===0){ // REMOVE THIS FOR NOT DECLIDED USE CASE
+                  chart.config.data.datasets[0]._meta[0].data[i]._model.pointStyle = warning;
+                }
+                
+              }   
+
+            } 
+          }
+        });
+
+        shop.update();
+
+      }
+    });
+
+  });
+
+
+
+</script>
+
+{% endblock %}
