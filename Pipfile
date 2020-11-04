@@ -12,8 +12,7 @@ requests = "*"
 pyserial = "*"
 djangorestframework = "*"
 config = "*"
-xbee = "*"
-digi-xbee = "*"
+digi-xbee = "==1.3.0"
 
 [requires]
 python_version = "3.7"

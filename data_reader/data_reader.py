@@ -3,6 +3,7 @@ import time
 import serial
 import sys
 from requests.exceptions import HTTPError
+import json
 
 # serial configuration parameters
 port = '/dev/ttyS6'
@@ -10,11 +11,11 @@ baud_rate = 9600
 
 
 # variable used to extract packet data
-startMarker = '{'
-endMarker = '}'
+start = '{'
+end = '}'
 dataStarted = False
-dataBuf = ""
-messageComplete = False
+buffer = ""
+messageCompleted = False
 
 # decode message in utf-8, catching errors
 def decode_utf8(text):
@@ -36,7 +37,8 @@ def setupSerial(baudRate, serialPortName):
                             stopbits=serial.STOPBITS_ONE, 
                             bytesize=serial.EIGHTBITS, 
                             timeout=1)
-        print("Serial port " + serialPortName + " opened  Baudrate " + str(baudRate))
+
+        print("Serial port\t\t: " + serialPortName + "\nBaudrate\t\t: " + str(baudRate) + '\n')
         waitForArduino()
     except serial.SerialException as se:
         
@@ -50,43 +52,50 @@ def setupSerial(baudRate, serialPortName):
 
 def recvLikeArduino():
 
-    global startMarker, endMarker, dataStarted, dataBuf, messageComplete
-    if arduino.in_waiting > 0 and messageComplete == False:
+    global start, end, dataStarted, buffer, messageCompleted
+    if arduino.in_waiting > 0 and messageCompleted == False:
         
         x = arduino.read()
+        # print(x)
         # decode needed for Python3
         x = decode_utf8(x)
         
         if x=='Unable to decode the bytes':
-            print(x)
-            return "Error"
+            return "[!] Error: Unable to decode the bytes"
 
         if dataStarted == True:
-            if x != endMarker:
-                dataBuf = dataBuf + x
+            if x != end:
+                buffer = buffer + x
+
             else:
                 dataStarted = False
-                messageComplete = True
-        elif x == startMarker:
-            dataBuf = ''
+                messageCompleted = True
+
+        elif x == start:
+            buffer = ''
             dataStarted = True
     
-    if (messageComplete == True):
-        messageComplete = False
-        return dataBuf
+    if (messageCompleted == True):
+        messageCompleted = False
+        return buffer
     else:
-        return "Error"
+        return '[!] Nothing found'
 
 #reset the Arduino and wait for the welcoming packet: {Arduino is ready}
 
 def waitForArduino():
 
     print("Waiting for Arduino to reset")
-    print(arduino.get_settings())
+    settings = arduino.get_settings()
+    print()
+    for (k, v) in settings.items():
+        print(k + ': ' + str(v))
+    
+
     msg = ""
     while msg.find("Arduino is ready") == -1:
         msg = recvLikeArduino()
-        if not (msg == 'Error'):
+        if not '[!] Nothing found' in msg:
             print(msg)
         
 
@@ -117,20 +126,27 @@ def sendData(url, data):
     except Exception as error:
         print(f'Other errors has occurred: {error}')
     else:
-        print(f'POST request success: {response.status_code}')
+        print(f'POST request success: {response.status_code}. Data uploaded to the Server')
 
 
+print('##################################################################################################')
+print('#                            STARTING DATA READER FROM ARDUINO SERIAL                            #')
+print('##################################################################################################')
 setupSerial(baud_rate, port)
 while True:
     
     # check for a reply
     arduinoReply = recvLikeArduino()
 
-    if not (arduinoReply == 'Error'):
+    if (not '[!]' in arduinoReply):
+        # data received correctly
         data = prepareData(arduinoReply)
         print(data)
         url = 'http://localhost:8000/api/measures/'
         sendData(url, data)
+    elif 'Error' in arduinoReply:
+        # An error has occurred
+        print(arduinoReply)
 
 
         
