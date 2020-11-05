@@ -20,6 +20,5 @@ from visualizer import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('dashboard/', views.dashboard, name='dashboard'),
-    path('shelves_chart/', views.shelves_chart, name='shelves_chart'),
     path('', include('measures.urls'))
 ]

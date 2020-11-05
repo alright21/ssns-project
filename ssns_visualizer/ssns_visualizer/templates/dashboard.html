@@ -3,118 +3,199 @@
 
 {% block content %}
 
-<div id="container" style="width: 90%; margin: auto;">
-  <canvas id="shelves_chart" data-url="{% url 'shelves_chart' %}"></canvas>
+<div id="container" style="height: 50vh; margin: auto;padding: 20px;">
+  <canvas id="shelves_chart"></canvas>
 </div>
+<h2 class=" m-5 text-center">History</h2>
+<div  id="container" style="height: 40vh; margin: auto; padding: 20px;">
+  <canvas id="history_node_1"></canvas>
+</div>
+<div id="container" style="height: 40vh; margin: auto; padding: 20px;">
+  <canvas id="history_node_2"></canvas>
+</div>
+<div id="container" style="height: 40vh; margin: auto; padding: 20px; ">
+  <canvas id="history_node_3"></canvas>
+</div>
+<div id="container" style="height: 40vh; margin: auto; padding: 20px;">
+  <canvas id="history_node_4"></canvas>
+</div>
+
 
 <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.3/dist/Chart.min.js"></script>
 <script>
 
-  $(function () {
+  var history_data = {{ history| safe}};
+  var istant_data = {{ istant| safe}};
 
-    var $shelvesChart = $("#shelves_chart");
-    $.ajax({
-      url: $shelvesChart.data("url"),
-      success: function (data) {
+  var color_list = [];
+  for (var i = 0; i < istant_data.range_data.length; i++) {
+    color_list.push('white')
+  }
 
-        var ctx = $shelvesChart[0].getContext("2d");
-        var color_list = []
-        for (var i = 0; i < data.range_data.length; i++) {
-          color_list.push('white')
-        }
-        var shop = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: data.labels,
-            datasets: [
-              {
-                label: 'SHELF EMPTY',
-                data: data.light_data,
-                backgroundColor: 'red',
-                type: 'line',
-                showLine: false
-              },
-              {
-                label: 'status',
-                backgroundColor: color_list,
-                data: data.range_data
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            legend: {
-              position: 'top',
-              display: false
-            },
-            title: {
-              display: true,
-              text: 'Shelves Status'
-            },
-            scales: {
-              yAxes: [{
-                ticks: {
-                  suggestedMin: 0,
-                  suggestedMax: 100
-                }
-              }
-              ]
-            }, elements: {
-              point: {
-                radius: 0,
-                hitRadius: 0,
-                hoverRadius: 0
-              }
-            }
-          }
-        });
+  var plugin = {
 
-        // BAR COLORS
-        var filled = 60;
-        var halved = 30;
-        var dataset = shop.data.datasets[1];
-        for (var i = 0; i < dataset.data.length; i++) {
+    afterUpdate: function (chart) {
 
-          if (dataset.data[i] > filled) {
-            dataset.backgroundColor[i] = 'rgb(0, 255, 0)';
-          }
-          else if (dataset.data[i] > halved) {
-            dataset.backgroundColor[i] = 'rgb(255, 255, 0)';
-          }
-          else {
-            dataset.backgroundColor[i] = 'rgb(255, 0, 0)';
-          }
+      var warning = new Image();
+      warning.src = "{% static 'visualizer/serving-dish.png' %}";
+
+      for (var i = 0; i < chart.config.data.datasets[0].data.length; i++) {
+
+        if (chart.config.data.datasets[0].data[i] > 0) {
+
+          chart.config.data.datasets[0]._meta['4'].data[i]._model.pointStyle = warning;
 
         }
-
-        // LIGHT STATUS IMAGES
-        var warning = new Image();
-        warning.src = "{% static 'visualizer/serving-dish.png' %}";
-
-        Chart.pluginService.register({
-          
-          afterUpdate: function (chart) {
-            var dataset = shop.data.datasets[0];
-            for (var i = 0; i < dataset.data.length; i++) {
-
-              if (dataset.data[i] > 0) {
-                if (shop.data.datasets[1].data[i]===0){ // REMOVE THIS FOR NOT DECLIDED USE CASE
-                  chart.config.data.datasets[0]._meta[0].data[i]._model.pointStyle = warning;
-                }
-                
-              }   
-
-            } 
-          }
-        });
-
-        shop.update();
 
       }
-    });
+    }
+  };
+  var istant_config = {
+    plugins: [plugin],
+    type: 'bar',
+    data: {
+      labels: istant_data.labels,
+      datasets: [
+        {
+          label: 'SHELF EMPTY',
+          data: istant_data.light_data,
+          backgroundColor: 'red',
+          type: 'line',
+          showLine: false
+        },
+        {
+          label: 'status',
+          backgroundColor: color_list,
+          data: istant_data.range_data
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      legend: {
+        position: 'top',
+        display: false
+      },
+      title: {
+        display: false,
+        text: 'Shelves Status'
+      },
+      scales: {
+        yAxes: [{
+          ticks: {
+            suggestedMin: 0,
+            suggestedMax: 100
+          }
+        }
+        ]
+      }, elements: {
+        point: {
+          radius: 0,
+          hitRadius: 0,
+          hoverRadius: 0
+        }
+      }
+    }
+  };
 
-  });
+  var histories = [];
+  for (var i = 1; i < 5; i++) {
+
+    labels = history_data[i - 1].labels;
+    // console.log(labels);
+    data = history_data[i - 1].data;
+    var his = {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            borderColor: 'red',
+            data: data,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        legend: {
+          position: 'top',
+          display: false
+        },
+        title: {
+          display: true,
+          name: 'a',
+          fontSize: 15
+        },
+        scales: {
+          yAxes: [{
+            ticks: {
+              suggestedMin: 0,
+              suggestedMax: 100
+            }
+          }
+          ]
+        }
+      }
+    };
+    // console.log(his);
+
+
+    his.options.title.text = 'Node' + i;
+    console.log(his.options.title.text)
+    histories.push(his);
+
+
+
+  }
+  // console.log(history_data[0].labels);
+  window.onload = function () {
+
+    var history_node_1 = document.getElementById('history_node_1').getContext('2d');
+    window.node1 = new Chart(history_node_1, histories[0]);
+    var history_node_2 = document.getElementById('history_node_2').getContext('2d');
+    window.node2 = new Chart(history_node_2, histories[1]);
+    var history_node_3 = document.getElementById('history_node_3').getContext('2d');
+    window.node3 = new Chart(history_node_3, histories[2]);
+    var history_node_4 = document.getElementById('history_node_4').getContext('2d');
+    window.node4 = new Chart(history_node_4, histories[3]);
+
+
+    var ctx = document.getElementById('shelves_chart').getContext('2d');
+    var a = new Chart(ctx, istant_config);
+    window.shop = a;
+
+    var filled = 60;
+    var halved = 30;
+    var dataset = a.data.datasets[1];
+
+    for (var i = 0; i < dataset.data.length; i++) {
+
+      if (dataset.data[i] > filled) {
+        dataset.backgroundColor[i] = 'rgb(0, 255, 0)';
+      }
+      else if (dataset.data[i] > halved) {
+        dataset.backgroundColor[i] = 'rgb(255, 255, 0)';
+      }
+      else {
+        dataset.backgroundColor[i] = 'rgb(255, 0, 0)';
+      }
+
+    }
+
+    var warning = new Image();
+    warning.src = "{% static 'visualizer/serving-dish.png' %}";
+
+
+
+
+    a.update();
+
+  };
+
+
 
 
 

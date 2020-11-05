@@ -3,6 +3,8 @@ from measures.models import Measure
 from django.shortcuts import render
 from django.db.models import Max
 from django.http import JsonResponse
+# Import Datetime
+from datetime import datetime
 
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
@@ -17,46 +19,71 @@ def translate(value, leftMin, leftMax, rightMin, rightMax):
     return rightMin + (valueScaled * rightSpan)
 
 
-def dashboard(request):
-    return render(request, 'dashboard.html')
+def map_range(input):
 
-def shelves_chart(request):
-    labels = []
+    distance = 50
+    if input > 50:
+        if input > 0:
+            distance = 0
+        else:
+            distance = 10
+    elif input < 1:
+        distance = 100
+    else:
+        distance = translate(input, 0, 100, -100, 0)
+        distance = -distance
+    return distance
+
+
+def dashboard(request):
+
+    istant_labels = []
     range_data = []
     light_data = []
 
-    # queryset = Measure.objects.values('node_id').annotate(range=Sum('range')).order_by('node_id')
-    # queryset = Measure.objects.values('node_id','range').annotate(latest=Max('timestamp'))
-    queryset = Measure.objects.raw('select s1.* from measures_measure as s1 inner join (select node_id, max(timestamp) as mts FROM measures_measure GROUP BY node_id) s2 ON s2.node_id=s1.node_id and s1.timestamp=s2.mts ORDER BY node_id ASC')
-    for i in queryset:
-        print(i.range)
+    queryset = Measure.objects.raw(
+        'select s1.* from measures_measure as s1 inner join (select node_id, max(timestamp) as mts FROM measures_measure GROUP BY node_id) s2 ON s2.node_id=s1.node_id and s1.timestamp=s2.mts ORDER BY node_id ASC')
 
     for entry in queryset:
-        labels.append(entry.node_id)
-        range = 50
-        if entry.range > 50:
-            if entry.light>0:
-                range = 0
-            else:
-                range=10
-        elif entry.range < 1:
-            range = 100
-        else:
-            range = translate(entry.range, 0, 100, -100, 0)
-            range = -range
+        istant_labels.append(entry.node_id)
         
-        range_data.append(range)
+        range_data.append(map_range(entry.range))
         light = entry.light
-        
+
         if light == 0:
             light_data.append(0)
         else:
             light_data.append(50)
 
-        
+    history = []
 
-    return JsonResponse(data={
-        'labels': labels,
-        'range_data': range_data,
-        'light_data': light_data
+
+    for i in range(1, 5):
+
+        print(i)
+        queryset = Measure.objects.filter(node_id=i)[:10]
+        labels = []
+        data = []
+
+        for entry in queryset:
+
+            formatedDate = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            labels.append(formatedDate)
+            data.append(map_range(entry.range))
+
+        history.append({
+            'labels': labels,
+            'data': data
+            })
+
+    print(history)
+
+    return render(request, 'dashboard.html', {
+        'istant': {
+            'labels': istant_labels,
+            'range_data': range_data,
+            'light_data': light_data
+        },
+        'history': history
+
     })
