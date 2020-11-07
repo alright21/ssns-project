@@ -28,9 +28,9 @@ def map_range(input):
         else:
             distance = 10
     elif input < 1:
-        distance = 100
+        distance = 50
     else:
-        distance = translate(input, 0, 100, -100, 0)
+        distance = translate(input, 0, 50, -100, 0)
         distance = -distance
     return distance
 
@@ -61,7 +61,7 @@ def dashboard(request):
     for i in range(1, 5):
 
         print(i)
-        queryset = Measure.objects.filter(node_id=i)[:10]
+        queryset = list(Measure.objects.filter(node_id=i))[-10:]
         labels = []
         data = []
 
